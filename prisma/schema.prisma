@@ -59,10 +59,12 @@ model DoctorProfile {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  bookings       Booking[]
-  prescriptions  Prescription[]
-  timeSlots      TimeSlot[]
-  staffMembers   StaffMember[]
+  bookings         Booking[]
+  prescriptions    Prescription[]
+  timeSlots        TimeSlot[]
+  staffMembers     StaffMember[]
+  linkedDoctors    LinkedDoctor[] @relation("PrimaryToLinked")
+  linkedTo         LinkedDoctor[] @relation("LinkedToPrimary")
 }
 
 // ─── Services (catalog) ──────────────────────────────────────────────
@@ -206,6 +208,22 @@ model Notification {
   type      String   @default("info") // info, booking, payment, prescription, reminder
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
+}
+
+// ─── Linked Doctors (doctors added by a primary doctor) ──────────────
+model LinkedDoctor {
+  id              String   @id @default(cuid())
+  primaryDoctorId String
+  primaryDoctor   DoctorProfile @relation("PrimaryToLinked", fields: [primaryDoctorId], references: [id], onDelete: Cascade)
+  linkedDoctorId  String
+  linkedDoctor    DoctorProfile @relation("LinkedToPrimary", fields: [linkedDoctorId], references: [id], onDelete: Cascade)
+  // Permissions: which sections the linked doctor can access in this portal
+  permissions     String   @default("{}") // JSON: {"calendar":true,"patients":true,...}
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([primaryDoctorId, linkedDoctorId])
 }
 
 // ─── Staff Members (sub-users for doctors) ───────────────────────────
