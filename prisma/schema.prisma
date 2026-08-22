@@ -13,7 +13,7 @@ model User {
   email         String?   @unique
   phone         String?   @unique
   name          String
-  role          String    @default("CUSTOMER") // CUSTOMER | DOCTOR | STAFF
+  role          String    @default("CUSTOMER") // CUSTOMER | DOCTOR | STAFF | CLINIC_ADMIN
   avatar        String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -35,6 +35,48 @@ model OtpCode {
   createdAt  DateTime @default(now())
   userId     String?
   user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+// ─── Clinics ────────────────────────────────────────────────────────
+model Clinic {
+  id            String   @id @default(cuid())
+  name          String
+  address       String   @default("")
+  city          String   @default("")
+  phone         String?
+  email         String?
+  logo          String?
+  department    String   @default("")  // e.g. "Multi-specialty", "Cardiology Center", "Orthopedics"
+  type          String   @default("clinic") // clinic, hospital, diagnostic-center
+  
+  // JSON: {"Mon":"09:00-21:00","Tue":"09:00-18:00",...}
+  operatingHours String @default("{}")
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Direct relation: doctors whose clinicId points here (primary clinic)
+  doctors    DoctorProfile[]
+  staffMembers StaffMember[]
+  // Join table: detailed memberships with departments & association types
+    doctorMemberships ClinicDoctor[] @relation("ClinicMemberships")
+}
+
+// ─── Clinic-Doctor Join (multi-clinic, departments, locum, part-time) ──
+model ClinicDoctor {
+  id              String   @id @default(cuid())
+  clinicId        String
+  clinic          Clinic   @relation("ClinicMemberships", fields: [clinicId], references: [id], onDelete: Cascade)
+  doctorId        String
+  doctor          DoctorProfile @relation("ClinicMemberships", fields: [doctorId], references: [id], onDelete: Cascade)
+  department      String   @default("") // e.g. "Cardiology", "Orthopedics", "Pediatrics" (for hospitals)
+  associationType String   @default("full-time") // full-time, part-time, locum, visiting, consultant
+  isActive        Boolean  @default(true)
+  joinedAt        DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([clinicId, doctorId])
 }
 
 // ─── Doctor Profile ──────────────────────────────────────────────────
@@ -59,6 +101,13 @@ model DoctorProfile {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  // Primary clinic (backward compat)
+  clinicId        String?
+  clinic          Clinic?  @relation(fields: [clinicId], references: [id], onDelete: SetNull)
+
+  // Multi-clinic memberships (chain of clinics, hospitals, locum)
+  clinicMemberships ClinicDoctor[] @relation("ClinicMemberships")
+
   bookings         Booking[]
   prescriptions    Prescription[]
   timeSlots        TimeSlot[]
@@ -71,7 +120,7 @@ model DoctorProfile {
 model Service {
   id               String  @id @default(cuid())
   name             String
-  category         String  // childcare, eldercare, doctor, verification
+  category         String // childcare, eldercare, doctor, verification
   shortDescription String  @default("")
   longDescription  String  @default("")
   mode             String  @default("both") // physical, online, both
@@ -140,7 +189,7 @@ model TimeSlot {
   doctor    DoctorProfile @relation(fields: [doctorId], references: [id], onDelete: Cascade)
   date      String   // yyyy-mm-dd
   startTime String   // HH:mm
-  endTime   String   // HH:mm
+  endTime   String // HH:mm
   isBooked  Boolean  @default(false)
   bookingId String?
   createdAt DateTime @default(now())
@@ -217,7 +266,6 @@ model LinkedDoctor {
   primaryDoctor   DoctorProfile @relation("PrimaryToLinked", fields: [primaryDoctorId], references: [id], onDelete: Cascade)
   linkedDoctorId  String
   linkedDoctor    DoctorProfile @relation("LinkedToPrimary", fields: [linkedDoctorId], references: [id], onDelete: Cascade)
-  // Permissions: which sections the linked doctor can access in this portal
   permissions     String   @default("{}") // JSON: {"calendar":true,"patients":true,...}
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
@@ -226,16 +274,23 @@ model LinkedDoctor {
   @@unique([primaryDoctorId, linkedDoctorId])
 }
 
-// ─── Staff Members (sub-users for doctors) ───────────────────────────
+// ─── Staff Members (sub-users for doctors or clinics) ────────────────
 model StaffMember {
   id            String   @id @default(cuid())
-  doctorId      String
-  doctor        DoctorProfile @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  
+  // If clinicId is set, this staff sees ALL doctors in that clinic.
+  // If clinicId is null, staff is tied to a single doctor.
+  doctorId      String?  
+  doctor        DoctorProfile? @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  clinicId      String?
+  clinic        Clinic?  @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  
   userId        String?  @unique  // login credential (if they have OTP login)
   user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   name          String
   phone         String
-  role          String   @default("receptionist") // receptionist, assistant, manager
+  role          String   @default("receptionist") // receptionist, assistant, manager, admin
+  associationType String @default("full-time") // full-time, part-time, locum
   // JSON: {"dashboard":true,"calendar":true,"patients":true,"prescriptions":false,"analytics":false,"video_call":false,"profile":false}
   permissions   String   @default("{}")
   isActive      Boolean  @default(true)

@@ -1,23 +1,48 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
-// GET /api/staff?doctorId=xxx — list staff for a doctor
+// GET /api/staff?doctorId=xxx | ?userId=xxx
+// userId path: staff login — if clinicId set, return ALL clinic doctors
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const doctorId = searchParams.get("doctorId");
-    const userId = searchParams.get("userId"); // for staff login: find which doctor this staff belongs to
+    const userId = searchParams.get("userId");
 
     if (userId) {
-      // Staff member looking up their own doctor
       const staff = await db.staffMember.findUnique({
         where: { userId },
         include: {
           doctor: { include: { user: { select: { name: true, phone: true, avatar: true } } } },
+          clinic: true,
           user: { select: { name: true, phone: true } },
         },
       });
       if (!staff) return NextResponse.json({ error: "Not a staff member" }, { status: 404 });
+
+      // If clinic staff — load all clinic doctors for the switcher
+      if (staff.clinicId) {
+        const clinicDoctors = await db.clinicDoctor.findMany({
+          where: { clinicId: staff.clinicId, isActive: true },
+          include: {
+            doctor: { include: { user: { select: { name: true, phone: true, avatar: true } } } },
+          },
+          orderBy: { joinedAt: "asc" },
+        });
+        return NextResponse.json({
+          ...staff,
+          clinicDoctors: clinicDoctors.map((cd) => ({
+            id: cd.doctor.id,
+            name: cd.doctor.user.name,
+            specialization: cd.doctor.specialization,
+            degree: cd.doctor.degree,
+            department: cd.department,
+            associationType: cd.associationType,
+            avatar: cd.doctor.user.avatar,
+          })),
+        });
+      }
+
       return NextResponse.json(staff);
     }
 
@@ -38,7 +63,7 @@ export async function GET(req: Request) {
   }
 }
 
-// POST /api/staff — create a staff member
+// POST /api/staff — create a staff member (tied to a single doctor)
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -48,7 +73,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "doctorId, name, and phone are required" }, { status: 400 });
     }
 
-    // Check for duplicate phone under same doctor
     const existing = await db.staffMember.findFirst({
       where: { doctorId, phone: String(phone) },
     });
@@ -73,7 +97,7 @@ export async function POST(req: Request) {
   }
 }
 
-// PUT /api/staff?id=xxx — update staff member (permissions, role, active status)
+// PUT /api/staff?id=xxx
 export async function PUT(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -89,30 +113,23 @@ export async function PUT(req: Request) {
     if (permissions !== undefined) data.permissions = JSON.stringify(permissions);
     if (isActive !== undefined) data.isActive = Boolean(isActive);
 
-    const staff = await db.staffMember.update({
-      where: { id },
-      data,
-    });
-
+    const staff = await db.staffMember.update({ where: { id }, data });
     return NextResponse.json(staff);
   } catch (error: unknown) {
     console.error("Staff PUT error:", error);
     const code = (error as { code?: string }).code;
-    if (code === "P2025") {
-      return NextResponse.json({ error: "Staff member not found" }, { status: 404 });
-    }
+    if (code === "P2025") return NextResponse.json({ error: "Staff member not found" }, { status: 404 });
     return NextResponse.json({ error: "Failed to update" }, { status: 500 });
   }
 }
 
-// DELETE /api/staff?id=xxx — remove staff member
+// DELETE /api/staff?id=xxx
 export async function DELETE(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
-    // Also clean up the linked user if it exists
     const staff = await db.staffMember.findUnique({ where: { id } });
     if (staff?.userId) {
       await db.user.delete({ where: { id: staff.userId } }).catch(() => {});
@@ -123,9 +140,7 @@ export async function DELETE(req: Request) {
   } catch (error: unknown) {
     console.error("Staff DELETE error:", error);
     const code = (error as { code?: string }).code;
-    if (code === "P2025") {
-      return NextResponse.json({ error: "Staff member not found" }, { status: 404 });
-    }
+    if (code === "P2025") return NextResponse.json({ error: "Staff member not found" }, { status: 404 });
     return NextResponse.json({ error: "Failed to delete" }, { status: 500 });
   }
 }

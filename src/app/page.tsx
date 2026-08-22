@@ -27,6 +27,16 @@ interface StaffPermissions {
   staff?: boolean;
 }
 
+interface ClinicDoctorInfo {
+  id: string;
+  name: string;
+  specialization: string;
+  degree: string;
+  department: string;
+  associationType: string;
+  avatar: string | null;
+}
+
 function DoctorPortal() {
   const { data: session, status } = useSession();
   const [activeView, setActiveView] = useState("dashboard");
@@ -47,6 +57,11 @@ function DoctorPortal() {
   const [isStaff, setIsStaff] = useState(false);
   const [staffPermissions, setStaffPermissions] = useState<Record<string, boolean> | null>(null);
 
+  // Clinic context — for clinic staff/manager to switch between doctors
+  const [clinicId, setClinicId] = useState<string | null>(null);
+  const [clinicName, setClinicName] = useState<string>("");
+  const [clinicDoctors, setClinicDoctors] = useState<ClinicDoctorInfo[]>([]);
+
   // Detect if user is a STAFF role and fetch their permissions
   useEffect(() => {
     if (!session?.user) return;
@@ -63,15 +78,34 @@ function DoctorPortal() {
         if (cancelled) return;
         if (staff.error) { signOut({ redirect: false }); return; }
 
-        // Set doctor context from staff's doctor
-        setDoctorId(staff.doctorId || "");
-        if (staff.doctor?.user) {
-          setDoctorName(staff.doctor.user.name || "Doctor");
-          setDoctorAvatar(staff.doctor.user.avatar || "");
-        }
-        if (staff.doctor) {
-          setDoctorSpecialization(staff.doctor.specialization || "");
-          setDoctorDegree(staff.doctor.degree || "");
+        if (staff.clinicId) {
+          // ── CLINIC STAFF: sees ALL doctors ──
+          setClinicId(staff.clinicId);
+          if (staff.clinic?.name) setClinicName(staff.clinic.name);
+
+          const docs: ClinicDoctorInfo[] = staff.clinicDoctors || [];
+          setClinicDoctors(docs);
+
+          // Default to first doctor
+          if (docs.length > 0) {
+            const first = docs[0];
+            setDoctorId(first.id);
+            setDoctorName(first.name);
+            setDoctorSpecialization(first.specialization);
+            setDoctorDegree(first.degree);
+            setDoctorAvatar(first.avatar || "");
+          }
+        } else if (staff.doctorId) {
+          // ── SINGLE DOCTOR STAFF ──
+          setDoctorId(staff.doctorId || "");
+          if (staff.doctor?.user) {
+            setDoctorName(staff.doctor.user.name || "Doctor");
+            setDoctorAvatar(staff.doctor.user.avatar || "");
+          }
+          if (staff.doctor) {
+            setDoctorSpecialization(staff.doctor.specialization || "");
+            setDoctorDegree(staff.doctor.degree || "");
+          }
         }
 
         // Parse permissions
@@ -92,7 +126,6 @@ function DoctorPortal() {
         setExistingProfile(staff.doctor);
       })
       .catch(() => {
-        // If staff fetch fails, sign out
         signOut({ redirect: false });
       });
     return () => { cancelled = true; };
@@ -104,7 +137,7 @@ function DoctorPortal() {
     const user = session.user as Record<string, unknown>;
     const userId = user.id as string;
     const role = user.role as string;
-    if (role === "STAFF") return; // Staff profile loaded above
+    if (role === "STAFF") return;
     if (!userId) return;
     let cancelled = false;
     fetch(`/api/doctors?userId=${userId}`)
@@ -179,6 +212,9 @@ function DoctorPortal() {
     setExistingProfile(null);
     setIsStaff(false);
     setStaffPermissions(null);
+    setClinicId(null);
+    setClinicName("");
+    setClinicDoctors([]);
   }, []);
 
   const handleViewPrescriptions = useCallback((bookingId: string, patientName: string) => {
@@ -191,6 +227,15 @@ function DoctorPortal() {
     setPrescriptionBookingId(undefined);
     setPrescriptionPatientName(undefined);
     setActiveView("dashboard");
+  }, []);
+
+  // Clinic staff: switch between doctors
+  const handleClinicDoctorSwitch = useCallback((doc: ClinicDoctorInfo) => {
+    setDoctorId(doc.id);
+    setDoctorName(doc.name);
+    setDoctorSpecialization(doc.specialization);
+    setDoctorDegree(doc.degree);
+    setDoctorAvatar(doc.avatar || "");
   }, []);
 
   // Show login if not authenticated
@@ -320,6 +365,17 @@ function DoctorPortal() {
       onSignOut={handleSignOut}
       permissions={staffPermissions}
       isStaff={isStaff}
+      clinicContext={
+        clinicId
+          ? {
+              clinicId,
+              clinicName,
+              doctors: clinicDoctors,
+              currentDoctorId: doctorId,
+              onDoctorSwitch: handleClinicDoctorSwitch,
+            }
+          : null
+      }
     >
       <AnimatePresence mode="wait">
         <motion.div
