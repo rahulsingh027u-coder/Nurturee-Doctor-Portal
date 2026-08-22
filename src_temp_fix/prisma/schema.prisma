@@ -1,0 +1,299 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Users ───────────────────────────────────────────────────────────
+model User {
+  id            String    @id @default(cuid())
+  email         String?   @unique
+  phone         String?   @unique
+  name          String
+  role          String    @default("CUSTOMER") // CUSTOMER | DOCTOR | STAFF | CLINIC_ADMIN
+  avatar        String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  doctorProfile  DoctorProfile?
+  patientProfile  Patient?
+  staffProfile    StaffMember?
+  otpCodes       OtpCode[]
+  notifications  Notification[]
+}
+
+// ─── OTP Codes ───────────────────────────────────────────────────────
+model OtpCode {
+  id         String   @id @default(cuid())
+  phone      String
+  code       String
+  verified   Boolean  @default(false)
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+// ─── Clinics ────────────────────────────────────────────────────────
+model Clinic {
+  id            String   @id @default(cuid())
+  name          String
+  address       String   @default("")
+  city          String   @default("")
+  phone         String?
+  email         String?
+  logo          String?
+  department    String   @default("")  // e.g. "Multi-specialty", "Cardiology Center", "Orthopedics"
+  type          String   @default("clinic") // clinic, hospital, diagnostic-center
+  
+  // JSON: {"Mon":"09:00-21:00","Tue":"09:00-18:00",...}
+  operatingHours String @default("{}")
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Direct relation: doctors whose clinicId points here (primary clinic)
+  doctors    DoctorProfile[]
+  staffMembers StaffMember[]
+  // Join table: detailed memberships with departments & association types
+  doctorMemberships ClinicDoctor[]
+}
+
+// ─── Clinic-Doctor Join (multi-clinic, departments, locum, part-time) ──
+model ClinicDoctor {
+  id              String   @id @default(cuid())
+  clinicId        String
+  clinic          Clinic   @relation("ClinicMemberships", fields: [clinicId], references: [id], onDelete: Cascade)
+  doctorId        String
+  doctor          DoctorProfile @relation("ClinicMemberships", fields: [doctorId], references: [id], onDelete: Cascade)
+  department      String   @default("") // e.g. "Cardiology", "Orthopedics", "Pediatrics" (for hospitals)
+  associationType String   @default("full-time") // full-time, part-time, locum, visiting, consultant
+  isActive        Boolean  @default(true)
+  joinedAt        DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([clinicId, doctorId])
+}
+
+// ─── Doctor Profile ──────────────────────────────────────────────────
+model DoctorProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  specialization  String   // Pediatrician, Gynaecologist, Geriatric Specialist, GP
+  degree          String   // MBBS, MD, DCH, etc.
+  experienceYears Int      @default(0)
+  consultationFeeOnline  Int @default(0)  // in INR
+  consultationFeeOffline Int @default(0)  // in INR
+  registrationNo   String?
+  area            String  @default("") // e.g. "Sector 18, Gurgaon"
+  languages       String  @default("") // comma-separated, e.g. "English,Hindi,Punjabi"
+  availableFrom    String  @default("09:00") // HH:mm
+  availableTo      String  @default("21:00")
+  availableDays    String  @default("1,2,3,4,5,6") // 0=Sun, 1=Mon... comma-separated
+  bio             String?
+  profileComplete Boolean  @default(false)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Primary clinic (backward compat)
+  clinicId        String?
+  clinic          Clinic?  @relation(fields: [clinicId], references: [id], onDelete: SetNull)
+
+  // Multi-clinic memberships (chain of clinics, hospitals, locum)
+  clinicMemberships ClinicDoctor[] @relation("ClinicMemberships")
+
+  bookings         Booking[]
+  prescriptions    Prescription[]
+  timeSlots        TimeSlot[]
+  staffMembers     StaffMember[]
+  linkedDoctors    LinkedDoctor[] @relation("PrimaryToLinked")
+  linkedTo         LinkedDoctor[] @relation("LinkedToPrimary")
+}
+
+// ─── Services (catalog) ──────────────────────────────────────────────
+model Service {
+  id               String  @id @default(cuid())
+  name             String
+  category         String // childcare, eldercare, doctor, verification
+  shortDescription String  @default("")
+  longDescription  String  @default("")
+  mode             String  @default("both") // physical, online, both
+  price            Int     @default(0)
+  priceUnit        String  @default("per session")
+  onlinePrice      Int?
+  inHomePrice      Int?
+  duration         String  @default("45 min")
+  icon             String  @default("Stethoscope")
+  accent           String  @default("blue")
+  features         String  @default("[]") // JSON array stored as string
+}
+
+// ─── Patients (Customers who booked doctor services) ─────────────────
+model Patient {
+  id          String   @id @default(cuid())
+  userId      String?  @unique
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  name        String
+  phone       String
+  email       String?
+  gender      String?  @default("Other")
+  dob         String?  // ISO date
+  address     String?
+  city        String   @default("Gurgaon")
+  pincode     String?
+  medicalHistory String @default("") // free-text notes
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  bookings       Booking[]
+  prescriptions  Prescription[]
+}
+
+// ─── Bookings ────────────────────────────────────────────────────────
+model Booking {
+  id            String   @id @default(cuid())
+  patientId     String?
+  patient       Patient? @relation(fields: [patientId], references: [id], onDelete: SetNull)
+  doctorId      String?
+  doctor        DoctorProfile? @relation(fields: [doctorId], references: [id], onDelete: SetNull)
+  serviceId     String   @default("")
+  serviceName   String   @default("")
+  category      String   @default("doctor")
+  mode          String   @default("online") // online, physical
+  date          String   // ISO date yyyy-mm-dd
+  timeSlot      String   // e.g. "10:00 - 10:45"
+  notes         String?
+  price         Int      @default(0)
+  status        String   @default("pending") // pending, confirmed, in-progress, completed, cancelled, no-show
+  cancelReason  String?
+  address       String?
+  callDuration  Int?     // seconds
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  payments      Payment[]
+  prescriptions  Prescription[]
+  notifications  Notification[]
+}
+
+// ─── Time Slots (Doctor availability) ────────────────────────────────
+model TimeSlot {
+  id        String   @id @default(cuid())
+  doctorId  String
+  doctor    DoctorProfile @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  date      String   // yyyy-mm-dd
+  startTime String   // HH:mm
+  endTime   String // HH:mm
+  isBooked  Boolean  @default(false)
+  bookingId String?
+  createdAt DateTime @default(now())
+}
+
+// ─── Prescriptions ───────────────────────────────────────────────────
+model Prescription {
+  id          String   @id @default(cuid())
+  bookingId   String?
+  booking     Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  doctorId    String
+  doctor      DoctorProfile @relation(fields: [doctorId], references: [id])
+  patientId   String?
+  patient     Patient? @relation(fields: [patientId], references: [id], onDelete: SetNull)
+  patientName String
+  patientAge  String?
+  patientGender String?
+  diagnosis   String   @default("")
+  notes       String   @default("")
+  status      String   @default("draft") // draft, sent, viewed
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items       PrescriptionItem[]
+}
+
+// ─── Prescription Items ──────────────────────────────────────────────
+model PrescriptionItem {
+  id            String   @id @default(cuid())
+  prescriptionId String
+  prescription  Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  medicine      String
+  dosage        String   @default("")
+  frequency     String   @default("") // e.g. "Twice daily", "After meals"
+  duration      String   @default("") // e.g. "7 days", "2 weeks"
+  instructions  String   @default("")
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+}
+
+// ─── Payments ────────────────────────────────────────────────────────
+model Payment {
+  id          String   @id @default(cuid())
+  bookingId   String?
+  booking     Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  doctorId    String
+  amount      Int
+  platformFee Int      @default(0) // 10% platform fee
+  netPayout   Int
+  method      String   @default("online") // online, cash, upi
+  status      String   @default("pending") // pending, completed, refunded, failed
+  paidAt      DateTime?
+  createdAt   DateTime @default(now())
+}
+
+// ─── Notifications ───────────────────────────────────────────────────
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookingId String?
+  booking   Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  title     String
+  message   String
+  type      String   @default("info") // info, booking, payment, prescription, reminder
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+// ─── Linked Doctors (doctors added by a primary doctor) ──────────────
+model LinkedDoctor {
+  id              String   @id @default(cuid())
+  primaryDoctorId String
+  primaryDoctor   DoctorProfile @relation("PrimaryToLinked", fields: [primaryDoctorId], references: [id], onDelete: Cascade)
+  linkedDoctorId  String
+  linkedDoctor    DoctorProfile @relation("LinkedToPrimary", fields: [linkedDoctorId], references: [id], onDelete: Cascade)
+  permissions     String   @default("{}") // JSON: {"calendar":true,"patients":true,...}
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([primaryDoctorId, linkedDoctorId])
+}
+
+// ─── Staff Members (sub-users for doctors or clinics) ────────────────
+model StaffMember {
+  id            String   @id @default(cuid())
+  
+  // If clinicId is set, this staff sees ALL doctors in that clinic.
+  // If clinicId is null, staff is tied to a single doctor.
+  doctorId      String?  
+  doctor        DoctorProfile? @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  clinicId      String?
+  clinic        Clinic?  @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  
+  userId        String?  @unique  // login credential (if they have OTP login)
+  user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  name          String
+  phone         String
+  role          String   @default("receptionist") // receptionist, assistant, manager, admin
+  associationType String @default("full-time") // full-time, part-time, locum
+  // JSON: {"dashboard":true,"calendar":true,"patients":true,"prescriptions":false,"analytics":false,"video_call":false,"profile":false}
+  permissions   String   @default("{}")
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
