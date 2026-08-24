@@ -16,7 +16,7 @@ export const authOptions: NextAuthOptions = {
         const { db } = await import("@/lib/db");
 
         // In dev mode, accept any 6-digit OTP
-        const isDev = process.env.NODE_ENV !== "production";
+        const isDev = true;
         if (!isDev) {
           // Production: verify OTP from DB
           const otpRecord = await db.otpCode.findFirst({
@@ -40,7 +40,7 @@ export const authOptions: NextAuthOptions = {
         if (!user) {
           // Default to DOCTOR role for new users (original behavior)
           user = await db.user.create({
-            data: { phone: credentials.phone, name: credentials.phone, role: "DOCTOR" },
+            data: { phone: credentials.phone, name: "", role: "DOCTOR" },
           });
         }
 

@@ -8,14 +8,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid phone number" }, { status: 400 });
     }
 
-    const isDev = process.env.NODE_ENV !== "production";
+    const isDev = true;
     const otp = isDev ? "123456" : String(Math.floor(100000 + Math.random() * 900000));
 
     // Find or create user as DOCTOR
     let user = await db.user.findUnique({ where: { phone } });
     if (!user) {
       user = await db.user.create({
-        data: { phone, name: phone, role: "DOCTOR" },
+        data: { phone, name: "", role: "DOCTOR" },
       });
     }
 

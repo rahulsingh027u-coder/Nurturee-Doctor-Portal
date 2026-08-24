@@ -4,6 +4,8 @@ import { SessionProvider, useSession, signOut } from "next-auth/react";
 import { useState, useEffect, useCallback } from "react";
 import { DoctorLogin } from "@/components/doctor/DoctorLogin";
 import { DoctorProfileSetup } from "@/components/doctor/DoctorProfileSetup";
+import { PracticeTypeSelector } from "@/components/doctor/PracticeTypeSelector";
+import { OrganizationSetup } from "@/components/doctor/OrganizationSetup";
 import { DoctorLayout } from "@/components/doctor/DoctorLayout";
 import { DashboardView } from "@/components/doctor/DashboardView";
 import { CalendarView } from "@/components/doctor/CalendarView";
@@ -260,12 +262,37 @@ function DoctorPortal() {
     const phone = (session.user as Record<string, unknown>).phone
       ? ((session.user as Record<string, unknown>).phone as string).replace("+91", "")
       : doctorPhone;
+    const hasPracticeType = !!(existingProfile?.practiceType as string);
+    if (!hasPracticeType) {
+      return (
+        <PracticeTypeSelector
+          userId={userId}
+          doctorId={existingProfile?.id as string || userId}
+          onComplete={(type) => {
+            setExistingProfile((prev) => prev ? { ...prev, practiceType: type } : { practiceType: type, id: existingProfile?.id || userId });
+          }}
+        />
+      );
+    }
+    const pType = existingProfile?.practiceType as string;
+    if (pType === 'clinic' || pType === 'hospital') {
+      return (
+        <OrganizationSetup
+          userId={userId}
+          doctorId={existingProfile?.id as string || userId}
+          practiceType={pType}
+          onComplete={handleProfileComplete}
+          onBack={() => setExistingProfile((prev: any) => prev ? { ...prev, practiceType: undefined } : prev)}
+        />
+      );
+    }
     return (
       <DoctorProfileSetup
         userId={userId}
         phone={phone || ""}
         existingProfile={existingProfile || undefined}
         onComplete={handleProfileComplete}
+        onBack={() => setExistingProfile((prev: any) => prev ? { ...prev, practiceType: undefined } : prev)}
       />
     );
   }

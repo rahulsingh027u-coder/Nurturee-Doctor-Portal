@@ -3,12 +3,13 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 // ─── Users ───────────────────────────────────────────────────────────
 model User {
+  practiceType  String?
   id            String    @id @default(cuid())
   email         String?   @unique
   phone         String?   @unique
@@ -81,6 +82,7 @@ model ClinicDoctor {
 
 // ─── Doctor Profile ──────────────────────────────────────────────────
 model DoctorProfile {
+  practiceType  String?
   id              String   @id @default(cuid())
   userId          String   @unique
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)

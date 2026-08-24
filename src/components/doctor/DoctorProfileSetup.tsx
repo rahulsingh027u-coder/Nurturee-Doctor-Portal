@@ -93,6 +93,7 @@ interface DoctorProfileSetupProps {
   phone: string;
   existingProfile?: Record<string, unknown>;
   onComplete: () => void;
+  onBack?: () => void;
 }
 
 interface ProfileForm {
@@ -121,6 +122,7 @@ export default function DoctorProfileSetup({
   phone,
   existingProfile,
   onComplete,
+  onBack,
 }: DoctorProfileSetupProps) {
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -261,6 +263,7 @@ export default function DoctorProfileSetup({
   };
 
   const handleBack = () => {
+    if (step === 0 && onBack) { onBack(); return; }
     setError(null);
     setStep((s) => Math.max(s - 1, 0));
   };
@@ -453,7 +456,7 @@ export default function DoctorProfileSetup({
                 <select
                   value={form.specialization}
                   onChange={(e) => updateField("specialization", e.target.value)}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 pl-10 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+                  className="flex h-10 w-full rounded-md border border-input bg-background py-2 pl-10 pr-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
                 >
                   <option value="">Select specialization...</option>
                   {SPECIALIZATIONS.map((s) => (
@@ -485,7 +488,7 @@ export default function DoctorProfileSetup({
                     updateField("degree", e.target.value);
                     if (e.target.value) setCustomDegree("");
                   }}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 pl-10 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+                  className="flex h-10 w-full rounded-md border border-input bg-background py-2 pl-10 pr-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
                 >
                   <option value="">Select degree...</option>
                   {DEGREES.map((d) => (
@@ -937,7 +940,7 @@ export default function DoctorProfileSetup({
           <Button
             variant="outline"
             onClick={handleBack}
-            disabled={step === 0}
+            disabled={step === 0 && !onBack}
             className="gap-2"
           >
             Back
