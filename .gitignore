@@ -41,3 +41,8 @@ start.sh
 # ide
 .vscode/
 .idea/
+
+1
+Build
+build-and-restart.sh
+public/uploads/
