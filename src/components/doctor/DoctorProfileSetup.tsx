@@ -169,8 +169,8 @@ export default function DoctorProfileSetup({
     if (!file) return;
 
     // Validate file size (5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      setError("Image must be less than 5MB.");
+    if (file.size > 2 * 1024 * 1024) {
+      setError("Image must be less than 2MB.");
       return;
     }
 
@@ -399,7 +399,7 @@ export default function DoctorProfileSetup({
                   />
                 </label>
               </div>
-              <p className="text-xs text-muted-foreground">JPG, PNG or WebP. Max 5MB.</p>
+              <p className="text-xs text-muted-foreground">JPG, PNG or WebP. Max 2MB.</p>
             </div>
 
             <Separator />
