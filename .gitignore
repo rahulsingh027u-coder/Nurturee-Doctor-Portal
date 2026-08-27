@@ -46,3 +46,5 @@ start.sh
 Build
 build-and-restart.sh
 public/uploads/
+server.log
+*.log
