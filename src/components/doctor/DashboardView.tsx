@@ -250,6 +250,7 @@ export default function DashboardView({
       colorClass: "bg-blue-600",
       lightBg: "bg-blue-50",
       textColor: "text-blue-700",
+      onClick: onViewCalendar,
     },
     {
       label: "This Week's Earnings",
@@ -259,6 +260,7 @@ export default function DashboardView({
       colorClass: "bg-emerald-500",
       lightBg: "bg-emerald-50",
       textColor: "text-emerald-600",
+      onClick: onViewCalendar,
     },
     {
       label: "Total Patients",
@@ -268,6 +270,7 @@ export default function DashboardView({
       colorClass: "bg-violet-500",
       lightBg: "bg-violet-50",
       textColor: "text-violet-600",
+      onClick: onViewPatients,
     },
     {
       label: "Pending Prescriptions",
@@ -277,6 +280,7 @@ export default function DashboardView({
       colorClass: "bg-amber-500",
       lightBg: "bg-amber-50",
       textColor: "text-amber-600",
+      onClick: onViewCalendar,
     },
   ];
 
@@ -324,7 +328,8 @@ export default function DashboardView({
             return (
               <Card
                 key={card.label}
-                className="relative overflow-hidden border-gray-100 shadow-sm py-5"
+                className="relative overflow-hidden border-gray-100 shadow-sm py-5 cursor-pointer hover:shadow-md transition-shadow active:scale-[0.98] transition-transform"
+                onClick={card.onClick}
               >
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">

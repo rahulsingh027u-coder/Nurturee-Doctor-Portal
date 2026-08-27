@@ -16,7 +16,7 @@ export const authOptions: NextAuthOptions = {
         const { db } = await import("@/lib/db");
 
         // In dev mode, accept any 6-digit OTP
-        const isDev = true;
+        const isDev = process.env.NODE_ENV === 'development';
         if (!isDev) {
           // Production: verify OTP from DB
           const otpRecord = await db.otpCode.findFirst({

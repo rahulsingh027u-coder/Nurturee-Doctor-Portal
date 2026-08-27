@@ -34,8 +34,8 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const { doctorId, patientId, bookingId, patientName, patientAge, patientGender, diagnosis, notes, items, status } = await req.json();
-    if (!doctorId || !patientName) {
-      return NextResponse.json({ error: "doctorId and patientName required" }, { status: 400 });
+    if (!doctorId || !patientName || !patientAge || !patientGender || !diagnosis || !bookingId) {
+      return NextResponse.json({ error: "doctorId, patientName, patientAge, patientGender, diagnosis and bookingId are required" }, { status: 400 });
     }
 
     const prescription = await db.prescription.create({

@@ -8,7 +8,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid phone number" }, { status: 400 });
     }
 
-    const isDev = true;
+    const isDev = process.env.NODE_ENV === 'development';
     const otp = isDev ? "123456" : String(Math.floor(100000 + Math.random() * 900000));
 
     // Find or create user as DOCTOR

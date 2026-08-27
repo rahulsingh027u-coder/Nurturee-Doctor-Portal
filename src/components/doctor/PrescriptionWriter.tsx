@@ -897,6 +897,8 @@ export default function PrescriptionWriter({
   const [showPatientDropdown, setShowPatientDropdown] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<PatientInfo | null>(null);
   const [diagnosis, setDiagnosis] = useState("");
+  const [patientAge, setPatientAge] = useState("");
+  const [patientGender, setPatientGender] = useState("");
   const [notes, setNotes] = useState("");
   const [medicines, setMedicines] = useState<MedicineItem[]>([emptyMedicine()]);
   const [isSaving, setIsSaving] = useState(false);
@@ -993,6 +995,8 @@ export default function PrescriptionWriter({
 
   const selectPatient = useCallback((patient: PatientInfo) => {
     setSelectedPatient(patient);
+    setPatientAge(patient.age || "");
+    setPatientGender(patient.gender || "");
     setPatientSearch(patient.name);
     setShowPatientDropdown(false);
     setPatientResults([]);
@@ -1041,7 +1045,10 @@ export default function PrescriptionWriter({
   const savePrescription = useCallback(
     async (status: "draft" | "sent") => {
       if (!selectedPatient) return;
-      if (status === "sent" && !diagnosis.trim()) return;
+      if (!diagnosis.trim()) return;
+      if (!patientAge.trim()) return;
+      if (!patientGender.trim()) return;
+      if (!initialBookingId) return;
       if (!hasMedicine) return;
 
       if (status === "sent") setIsSending(true);
@@ -1053,8 +1060,8 @@ export default function PrescriptionWriter({
           patientId: selectedPatient.id || undefined,
           bookingId: initialBookingId || undefined,
           patientName: selectedPatient.name,
-          patientAge: selectedPatient.age || undefined,
-          patientGender: selectedPatient.gender || undefined,
+          patientAge: patientAge.trim() || undefined,
+          patientGender: patientGender.trim() || undefined,
           diagnosis: diagnosis.trim(),
           notes: notes.trim(),
           status,
@@ -1079,6 +1086,8 @@ export default function PrescriptionWriter({
         if (status === "sent") {
           // Reset form after sending
           setSelectedPatient(null);
+      setPatientAge("");
+      setPatientGender("");
           setPatientSearch("");
           setDiagnosis("");
           setNotes("");
@@ -1298,12 +1307,42 @@ export default function PrescriptionWriter({
                   </Card>
                 )}
 
+                {/* Patient Age & Gender */}
+                {selectedPatient && (
+                  <Card className="border-gray-200">
+                    <CardContent className="flex flex-wrap gap-4 p-4">
+                      <div className="flex-1 min-w-[120px]">
+                        <label className="text-xs font-medium text-gray-500">Age <span className="text-red-500">*</span></label>
+                        <Input
+                          placeholder="e.g. 35 yrs"
+                          value={patientAge}
+                          onChange={(e) => setPatientAge(e.target.value)}
+                          className="mt-1 border-gray-200"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-[120px]">
+                        <label className="text-xs font-medium text-gray-500">Gender <span className="text-red-500">*</span></label>
+                        <Select value={patientGender} onValueChange={setPatientGender}>
+                          <SelectTrigger className="mt-1 border-gray-200">
+                            <SelectValue placeholder="Select gender" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Male">Male</SelectItem>
+                            <SelectItem value="Female">Female</SelectItem>
+                            <SelectItem value="Other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
                 {/* Diagnosis */}
                 <Card className="border-gray-200">
                   <CardHeader className="pb-3">
                     <CardTitle className="flex items-center gap-2 text-sm">
                       <AlertCircle className="size-4 text-blue-600" />
-                      Diagnosis
+                      Diagnosis <span className="text-red-500">*</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
