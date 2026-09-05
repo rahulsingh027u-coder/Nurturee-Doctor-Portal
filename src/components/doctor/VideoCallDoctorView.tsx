@@ -145,9 +145,7 @@ export default function VideoCallDoctorView({
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const callStartTimeRef = useRef<number>(0);
   const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
-  const peerIdRef = useRef<string>(
-    `doctor-${Math.random().toString(36).slice(2, 10)}`
-  );
+
 
   // ── Fetch available bookings (today, confirmed, online, no prescription yet) ──
   const fetchAvailable = useCallback(async () => {
@@ -350,7 +348,6 @@ export default function VideoCallDoctorView({
     pc.onicecandidate = (e) => {
       if (e.candidate && socketRef.current && currentBooking) {
         socketRef.current.emit("signal", {
-          to: currentBooking.patientId,
           kind: "ice",
           payload: e.candidate.toJSON(),
         });
@@ -375,6 +372,16 @@ export default function VideoCallDoctorView({
       setCallPhase("ringing");
       setCallDuration(0);
 
+      // Join the booking room (room-based calling)
+      socketRef.current?.emit("join-room", {
+        roomId: `booking_${booking.id}`,
+        role: "doctor",
+        bookingId: booking.id,
+      });
+
+      // Give the room join a moment to propagate
+      await new Promise(r => setTimeout(r, 500));
+
       // Get local media
       const stream = await navigator.mediaDevices.getUserMedia({
         video: true,
@@ -388,13 +395,11 @@ export default function VideoCallDoctorView({
 
       setCallPhase("connecting");
 
-      // Create offer
+      // Create offer — send to room (no "to" field needed)
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
 
-      // Send via WebSocket
       socketRef.current?.emit("signal", {
-        to: booking.patientId,
         kind: "call-offer",
         payload: offer,
       });
@@ -414,7 +419,6 @@ export default function VideoCallDoctorView({
     // Send call-end signal
     if (socket && currentBooking) {
       socket.emit("signal", {
-        to: currentBooking.patientId,
         kind: "call-end",
       });
     }
