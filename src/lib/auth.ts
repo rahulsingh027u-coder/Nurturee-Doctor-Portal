@@ -93,9 +93,9 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.id = user.id;
-        token.role = (user as Record<string, unknown>).role;
-        token.profileComplete = (user as Record<string, unknown>).profileComplete;
+        token.id = String((user as any).id);
+        token.role = String((user as unknown as Record<string, unknown>).role);
+        token.profileComplete = Boolean((user as unknown as Record<string, unknown>).profileComplete);
       }
       return token;
     },

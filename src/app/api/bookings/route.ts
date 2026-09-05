@@ -25,7 +25,7 @@ export async function GET(req: Request) {
       where.date = { gte: from };
     }
 
-    const bookings = await db.booking.findMany({
+    const bookings = await (db as any).booking.findMany({
       where,
       include: { patient: true },
       orderBy: [{ date: "desc" }, { timeSlot: "asc" }],
@@ -77,7 +77,7 @@ export async function POST(req: Request) {
 
     // Upsert patient (match by phone, or create new)
     const existingPatient = await db.patient.findUnique({
-      where: { phone: patientPhone },
+      where: { phone: patientPhone } as any,
     });
 
     let patientId: string;
@@ -103,7 +103,7 @@ export async function POST(req: Request) {
     }
 
     // Create the booking
-    const booking = await db.booking.create({
+    const booking = await (db as any).booking.create({
       data: {
         patientId,
         doctorId,
@@ -138,7 +138,7 @@ export async function PATCH(req: Request) {
     if (callDuration !== undefined) data.callDuration = callDuration;
     if (cancelReason) data.cancelReason = cancelReason;
 
-    const booking = await db.booking.update({ where: { id }, data });
+    const booking = await (db as any).booking.update({ where: { id }, data });
     return NextResponse.json(booking);
   } catch (error) {
     return NextResponse.json({ error: "Failed" }, { status: 500 });

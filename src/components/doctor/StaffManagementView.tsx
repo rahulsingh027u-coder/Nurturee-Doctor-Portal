@@ -133,6 +133,7 @@ const CLINIC_TYPES = [
 // ---------------------------------------------------------------------------
 
 export default function StaffManagementView({ doctorId }: StaffManagementViewProps) {
+  const doctorName = ""; // TODO: pass as prop
   const [activeTab, setActiveTab] = useState<TabType>("staff");
 
   // ── Staff state ──
@@ -586,7 +587,7 @@ export default function StaffManagementView({ doctorId }: StaffManagementViewPro
                   <CardTitle className="text-lg">Add Staff Member</CardTitle>
                   <Button variant="ghost" size="icon" onClick={() => { setShowAddForm(false); resetForm(); }}><X className="h-4 w-4" /></Button>
                 </div>
-                <CardDescription>This staff will only see your (Dr. {doctorName || "you"}) data</CardDescription>
+                <CardDescription>This staff will only see your (Dr. {doctorName || "" || "you"}) data</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

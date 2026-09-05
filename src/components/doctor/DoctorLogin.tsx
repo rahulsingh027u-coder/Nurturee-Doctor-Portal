@@ -93,7 +93,7 @@ export default function DoctorLogin({ onLoginSuccess }: DoctorLoginProps) {
         throw new Error("Invalid OTP. Please check and try again.");
       }
 
-      onLoginSuccess(result?.user?.id ?? "doctor");
+      onLoginSuccess((result as any)?.user?.id ?? "doctor");
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Verification failed. Please try again."

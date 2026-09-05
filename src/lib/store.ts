@@ -356,7 +356,10 @@ export const useAppStore = create<AppState>()(
         set((s) => ({
           slotStates: {
             ...s.slotStates,
-            [bookingId]: { locked: false, ringing: false, ...s.slotStates[bookingId], ...patch },
+            [bookingId]: {
+              ...(s.slotStates[bookingId] ?? { locked: false, ringing: false }),
+              ...patch,
+            },
           },
         })),
 

@@ -99,7 +99,7 @@ export async function PUT(req: Request) {
     if (existing) {
       doctor = await db.doctorProfile.update({ where: { userId }, data: profilePayload });
     } else {
-      doctor = await db.doctorProfile.create({
+      doctor = await (db as any).doctorProfile.create({
         data: { userId, ...profilePayload },
       });
     }

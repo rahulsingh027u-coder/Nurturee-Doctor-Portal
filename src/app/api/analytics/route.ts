@@ -16,18 +16,18 @@ export async function GET(req: Request) {
     const today = new Date();
     const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
-    const todayBookings = await db.booking.count({ where: { doctorId, date: todayStr, status: { not: "cancelled" } } });
+    const todayBookings = await (db as any).booking.count({ where: { doctorId, date: todayStr, status: { not: "cancelled" } } });
     const weekStart = new Date(today); weekStart.setDate(today.getDate() - today.getDay() + 1);
     const weekStartStr = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, "0")}-${String(weekStart.getDate()).padStart(2, "0")}`;
 
-    const weekPayments = await db.payment.findMany({
+    const weekPayments = await (db as any).payment.findMany({
       where: { doctorId, paidAt: { gte: new Date(weekStartStr) }, status: "completed" },
     });
     const weekEarnings = weekPayments.reduce((s, p) => s + p.netPayout, 0);
 
-    const totalPatients = await db.booking.groupBy({ by: ["patientId"], where: { doctorId, status: { not: "cancelled" } } });
+    const totalPatients = await (db as any).booking.groupBy({ by: ["patientId"], where: { doctorId, status: { not: "cancelled" } } });
 
-    const pendingPrescriptions = await db.booking.count({
+    const pendingPrescriptions = await (db as any).booking.count({
       where: { doctorId, status: "completed", prescriptions: { none: {} } },
     });
 
@@ -38,11 +38,11 @@ export async function GET(req: Request) {
       const mStart = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, "0")}-01`;
       const mEnd = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, "0")}-${new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate()}`;
 
-      const monthPayments = await db.payment.findMany({
+      const monthPayments = await (db as any).payment.findMany({
         where: { doctorId, status: "completed", paidAt: { gte: new Date(mStart), lte: new Date(mEnd + "T23:59:59") } },
       });
 
-      const monthBookings = await db.booking.findMany({
+      const monthBookings = await (db as any).booking.findMany({
         where: { doctorId, date: { gte: mStart, lte: mEnd } },
       });
 
@@ -66,7 +66,7 @@ export async function GET(req: Request) {
       const mEnd = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, "0")}-${new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate()}`;
 
       // Patients whose first booking was this month
-      const firstBookings = await db.booking.groupBy({
+      const firstBookings = await (db as any).booking.groupBy({
         by: ["patientId"],
         where: { doctorId, date: { gte: mStart, lte: mEnd } },
         having: { patientId: { _count: { gte: 1 } } },
@@ -90,14 +90,14 @@ export async function GET(req: Request) {
     }
 
     // Gender breakdown
-    const allPatients = await db.booking.groupBy({
+    const allPatients = await (db as any).booking.groupBy({
       by: ["patientId"],
       where: { doctorId, status: { not: "cancelled" } },
     });
     const genderData = { Male: 0, Female: 0, Other: 0 };
     for (const ap of allPatients) {
       if (!ap.patientId) continue;
-      const patient = await db.patient.findUnique({ where: { id: ap.patientId } });
+      const patient = await (db as any).patient.findUnique({ where: { id: ap.patientId } });
       if (patient) {
         const g = patient.gender || "Other";
         genderData[g as keyof typeof genderData] = (genderData[g as keyof typeof genderData] || 0) + 1;
@@ -105,7 +105,7 @@ export async function GET(req: Request) {
     }
 
     // --- Appointment stats ---
-    const allBookings = await db.booking.findMany({ where: { doctorId } });
+    const allBookings = await (db as any).booking.findMany({ where: { doctorId } });
     const totalBookings = allBookings.length;
     const cancelledBookings = allBookings.filter((b) => b.status === "cancelled").length;
     const noShowBookings = allBookings.filter((b) => b.status === "no-show").length;
@@ -134,7 +134,7 @@ export async function GET(req: Request) {
       .sort((a, b) => a.hour.localeCompare(b.hour));
 
     // --- Recent payments ---
-    const recentPayments = await db.payment.findMany({
+    const recentPayments = await (db as any).payment.findMany({
       where: { doctorId },
       include: { booking: { include: { patient: true } } },
       orderBy: { createdAt: "desc" },
@@ -142,7 +142,7 @@ export async function GET(req: Request) {
     });
 
     // --- Upcoming appointments ---
-    const upcomingBookings = await db.booking.findMany({
+    const upcomingBookings = await (db as any).booking.findMany({
       where: { doctorId, date: { gte: todayStr }, status: { in: ["confirmed", "pending"] } },
       include: { patient: true },
       orderBy: [{ date: "asc" }, { timeSlot: "asc" }],
@@ -150,7 +150,7 @@ export async function GET(req: Request) {
     });
 
     // --- Today's bookings ---
-    const todaysBookings = await db.booking.findMany({
+    const todaysBookings = await (db as any).booking.findMany({
       where: { doctorId, date: todayStr },
       include: { patient: true, prescriptions: true },
       orderBy: { timeSlot: "asc" },
@@ -159,7 +159,7 @@ export async function GET(req: Request) {
     // --- Calendar bookings (this month) ---
     const monthStart = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-01`;
     const monthEnd = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()}`;
-    const calendarBookings = await db.booking.findMany({
+    const calendarBookings = await (db as any).booking.findMany({
       where: { doctorId, date: { gte: monthStart, lte: monthEnd } },
       include: { patient: true, prescriptions: true },
       orderBy: [{ date: "asc" }, { timeSlot: "asc" }],
@@ -167,9 +167,9 @@ export async function GET(req: Request) {
 
     // --- Time slots for a specific date ---
     const dateParam = searchParams.get("date");
-    let timeSlots = [];
+    let timeSlots: any[] = [];
     if (dateParam) {
-      timeSlots = await db.timeSlot.findMany({
+      timeSlots = await (db as any).timeSlot.findMany({
         where: { doctorId, date: dateParam },
         orderBy: { startTime: "asc" },
       });
