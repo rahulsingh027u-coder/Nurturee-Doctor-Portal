@@ -48,3 +48,7 @@ build-and-restart.sh
 public/uploads/
 server.log
 *.log
+
+# Backup files
+*.bak
+_backups/
