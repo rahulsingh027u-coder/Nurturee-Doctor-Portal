@@ -2,21 +2,47 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
 // GET /api/bookings?doctorId=xxx&date=xxx&status=xxx
+// doctorId param is User.id from NextAuth session.
+// We resolve ALL possible IDs (User.id, DoctorProfile.id, Doctor.id) so the
+// doctor sees bookings from every source (portal POST + customer app).
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const doctorId = searchParams.get("doctorId");
+    const doctorIdParam = searchParams.get("doctorId");
     const date = searchParams.get("date");
     const status = searchParams.get("status");
     const from = searchParams.get("from");
     const to = searchParams.get("to");
 
     const where: Record<string, unknown> = {};
-    if (doctorId) {
-      // Resolve User ID to DoctorProfile ID
-      const profile = await db.doctorProfile.findUnique({ where: { userId: doctorId } });
-      where.doctorId = profile ? profile.id : doctorId;
+
+    if (doctorIdParam) {
+      const possibleIds = new Set<string>([doctorIdParam]);
+
+      // Find DoctorProfile by userId
+      const profile = await db.doctorProfile.findUnique({ where: { userId: doctorIdParam } });
+      if (profile) possibleIds.add(profile.id);
+
+      // Find the User to get their phone + email
+      const user = await db.user.findUnique({ where: { id: doctorIdParam } });
+
+      // Find Doctor records matching by phone OR email (customer app uses Doctor.id)
+      if (user) {
+        const doctors = await db.doctor.findMany({
+          where: {
+            OR: [
+              ...(user.phone ? [{ phone: user.phone }] : []),
+              ...(user.email ? [{ email: user.email }] : []),
+            ],
+          },
+          select: { id: true },
+        });
+        doctors.forEach((d) => possibleIds.add(d.id));
+      }
+
+      where.doctorId = { in: Array.from(possibleIds) };
     }
+
     if (status) where.status = status;
     if (date) where.date = date;
     if (from && to) {
@@ -34,6 +60,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json(bookings);
   } catch (error) {
+    console.error("GET /api/bookings error:", error);
     return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
 }
@@ -43,30 +70,9 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const {
-      doctorId,
-      patientName,
-      patientPhone,
-      patientGender,
-      mode,
-      date,
-      timeSlot,
-      notes,
-      price,
-      serviceName,
-      category,
-    } = body as {
-      doctorId?: string;
-      patientName?: string;
-      patientPhone?: string;
-      patientGender?: string;
-      mode?: string;
-      date?: string;
-      timeSlot?: string;
-      notes?: string;
-      price?: number;
-      serviceName?: string;
-      category?: string;
-    };
+      doctorId, patientName, patientPhone, patientGender, mode,
+      date, timeSlot, notes, price, serviceName, category,
+    } = body as any;
 
     if (!doctorId || !patientName || !patientPhone || !date || !timeSlot || !price) {
       return NextResponse.json(
@@ -75,47 +81,27 @@ export async function POST(req: Request) {
       );
     }
 
-    // Upsert patient (match by phone, or create new)
-    const existingPatient = await db.patient.findUnique({
-      where: { phone: patientPhone } as any,
-    });
-
+    const existingPatient = await db.patient.findUnique({ where: { phone: patientPhone } as any });
     let patientId: string;
     if (existingPatient) {
-      // Update name/gender if they changed
       patientId = existingPatient.id;
       await db.patient.update({
         where: { id: patientId },
-        data: {
-          name: patientName,
-          ...(patientGender ? { gender: patientGender } : {}),
-        },
+        data: { name: patientName, ...(patientGender ? { gender: patientGender } : {}) },
       });
     } else {
       const patient = await db.patient.create({
-        data: {
-          name: patientName,
-          phone: patientPhone,
-          gender: patientGender || "Other",
-        },
+        data: { name: patientName, phone: patientPhone, gender: patientGender || "Other" },
       });
       patientId = patient.id;
     }
 
-    // Create the booking
     const booking = await (db as any).booking.create({
       data: {
-        patientId,
-        doctorId,
-        serviceId: "",
+        patientId, doctorId, serviceId: "",
         serviceName: serviceName || "Doctor Consultation",
-        category: category || "doctor",
-        mode: mode || "online",
-        date,
-        timeSlot,
-        notes: notes || null,
-        price,
-        status: "pending",
+        category: category || "doctor", mode: mode || "online",
+        date, timeSlot, notes: notes || null, price, status: "pending",
       },
       include: { patient: true },
     });
