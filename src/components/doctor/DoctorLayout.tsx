@@ -16,6 +16,7 @@ import {
   MoreHorizontal,
   UserRound,
   Shield,
+  ShieldCheck,
   Building2,
   ChevronDown,
   Check,
@@ -98,6 +99,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "profile", label: "Profile", icon: UserRound },
   { id: "video-call", label: "Video Call", icon: Video, mobile: true },
   { id: "staff", label: "Staff Access", icon: Shield },
+  { id: "verification", label: "Verification", icon: ShieldCheck },
 ];
 
 // ---------------------------------------------------------------------------
@@ -153,6 +155,7 @@ export default function DoctorLayout({
     if (!permissions) return NAV_ITEMS;
     return NAV_ITEMS.filter((item) => {
       if (item.id === "staff") return permissions.staff === true;
+      if (item.id === "verification") return true; // always show for doctors
       return permissions[item.id] === true;
     });
   }, [permissions]);

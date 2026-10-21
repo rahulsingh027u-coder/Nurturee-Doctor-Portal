@@ -15,6 +15,7 @@ import { AnalyticsView } from "@/components/doctor/AnalyticsView";
 import { VideoCallDoctorView } from "@/components/doctor/VideoCallDoctorView";
 import { DoctorProfileView } from "@/components/doctor/DoctorProfileView";
 import StaffManagementView from "@/components/doctor/StaffManagementView";
+import { DoctorVerificationView } from "@/components/doctor/DoctorVerificationView";
 import { Toaster } from "@/components/ui/sonner";
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -367,6 +368,8 @@ function DoctorPortal() {
         );
       case "staff":
         return <StaffManagementView doctorId={doctorId} />;
+      case "verification":
+        return <DoctorVerificationView userId={(session.user as Record<string, unknown>).id as string} />;
       default:
         return (
           <DashboardView

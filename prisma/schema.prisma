@@ -32,6 +32,8 @@ model OtpCode {
   phone      String
   code       String
   verified   Boolean  @default(false)
+  isSuspended     Boolean  @default(false)
+  suspensionReason String?
   expiresAt  DateTime
   createdAt  DateTime @default(now())
   userId     String?
@@ -169,7 +171,7 @@ model Booking {
   category      String   @default("doctor")
   mode          String   @default("online") // online, physical
   date          String   // ISO date yyyy-mm-dd
-  timeSlot      String   // e.g. "10:00 - 10:45"
+  timeSlot      String?  // nullable. "10:00 - 10:45"
   notes         String?
   price         Int      @default(0)
   status        String   @default("pending") // pending, confirmed, in-progress, completed, cancelled, no-show
@@ -298,4 +300,162 @@ model StaffMember {
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+// ─── Verification (Doctor document submission for admin review) ──
+model Verification {
+  id               String    @id @default(cuid())
+  entityType       String
+  entityId         String
+  status           String    @default("pending")
+  package          String?
+  documents        String    @default("[]")
+  reviewNotes      String?
+  reviewedBy       String?
+  reviewedAt       DateTime?
+  attemptCount     Int       @default(1)
+  isSuspended      Boolean   @default(false)
+  suspensionReason String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  @@index([entityType, entityId])
+}
+
+// ─── Schema A models (Admin/Customer/CarePartner compatibility) ───
+
+model Admin {
+  id             String    @id @default(cuid())
+  name           String
+  email          String    @unique
+  password       String
+  role           String    @default("super_admin")
+  permissions    String    @default("{}")
+  activeBranches String    @default("[]")
+  isActive       Boolean   @default(true)
+  assignedBy     String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model SubUser {
+  id             String    @id @default(cuid())
+  name           String
+  email          String    @unique
+  password       String
+  permissions    String    @default("{}")
+  activeBranches String    @default("[]")
+  isActive       Boolean   @default(true)
+  assignedBy     String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model Doctor {
+  id                String    @id @default(cuid())
+  name              String
+  email             String    @unique
+  phone             String
+  password          String
+  specialty         String
+  qualifications    String
+  experience        Int
+  languages         String    @default("[]")
+  area              String    @default("")
+  avatar            String?
+  bio               String?
+  feeOnline         Float     @default(0)
+  feeAtHome         Float     @default(0)
+  isOnline          Boolean   @default(false)
+  isPortalUser      Boolean   @default(false)
+  isBlocked         Boolean   @default(false)
+  blockReason       String?
+  commissionRate    Float     @default(15)
+  commissionDue     Float     @default(0)
+  totalConsultations Int      @default(0)
+  avgRating         Float     @default(0)
+  verified          Boolean   @default(false)
+  isSuspended       Boolean   @default(false)
+  suspensionReason  String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+model Caregiver {
+  id                  String    @id @default(cuid())
+  caregiverId         String    @unique
+  phone               String
+  name                String?
+  email               String?
+  specialty           String?
+  experience          Int?
+  qualifications      String?
+  isVerified          Boolean   @default(false)
+  aadhaarVerified     Boolean   @default(false)
+  policeVerified      Boolean   @default(false)
+  medicalFitness      Boolean   @default(false)
+  videoVerified       Boolean   @default(false)
+  isSuspended         Boolean   @default(false)
+  suspensionReason    String?
+  isAvailable         Boolean?
+  onboardingCompleted Boolean   @default(false)
+  termsAcceptedAt     DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+}
+
+model DoctorSchedule {
+  id           String   @id @default(cuid())
+  doctorId     String
+  dayOfWeek    Int
+  startTime    String
+  endTime      String
+  slotDuration Int      @default(60)
+  maxPatients  Int      @default(10)
+  isAvailable  Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Document {
+  id         String   @id @default(cuid())
+  patientId  String
+  bookingId  String?
+  fileName   String
+  fileType   String
+  fileUrl    String
+  category   String   @default("prescription")
+  uploadedAt DateTime @default(now())
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  bookingId  String   @unique
+  doctorId   String
+  patientId  String
+  rating     Float
+  comment    String?
+  createdAt  DateTime @default(now())
+}
+
+model Commission {
+  id               String    @id @default(cuid())
+  bookingId        String    @unique
+  doctorId         String
+  totalAmount      Float
+  commissionRate   Float
+  commissionAmount Float
+  doctorEarnings   Float
+  paymentStatus    String    @default("pending")
+  paidAt           DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+model Transaction {
+  id          String   @id @default(cuid())
+  doctorId    String
+  amount      Float
+  type        String
+  description String
+  createdAt   DateTime @default(now())
 }
