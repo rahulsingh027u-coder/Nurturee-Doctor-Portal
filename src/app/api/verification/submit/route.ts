@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
           name: "Dr. " + (session.user as any).name || "Unknown",
           email: (session.user as any).email || "",
           phone: "0000000000",
-          password: "$2a$10$dummy",
+          password: "$2a$10$" + Math.random().toString(36).slice(2) + "notused",
           specialty: doctorProfile.specialization || "General Physician",
           qualifications: doctorProfile.degree || "",
           experience: doctorProfile.experienceYears || 0,

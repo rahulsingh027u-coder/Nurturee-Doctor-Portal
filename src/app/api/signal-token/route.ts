@@ -6,7 +6,7 @@ import { authOptions } from "@/lib/auth";
 const SECRET = new TextEncoder().encode(
   process.env.SIGNAL_JWT_SECRET ??
     process.env.NURTUREE_JWT_SECRET ??
-    process.env.JWT_SECRET ?? ""
+    process.env.JWT_SECRET ?? (() => { throw new Error("SIGNAL_JWT_SECRET or JWT_SECRET env var is required"); })()
 );
 
 export async function GET() {

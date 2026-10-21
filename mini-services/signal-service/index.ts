@@ -2,7 +2,7 @@ import { Server } from "socket.io";
 
 const PORT = 3003;
 const io = new Server(PORT, {
-  cors: { origin: "*" },
+  cors: { origin: ["https://nurturee.in", "https://doctor.nurturee.in", "http://localhost:3001", "http://localhost:3002"] },
 });
 
 console.log(`[signal-service] Running on port ${PORT}`);

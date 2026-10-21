@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
@@ -9,9 +10,9 @@ export async function POST(req: Request) {
     }
 
     const isDev = process.env.NODE_ENV === 'development';
-    const TEST_PHONES = new Set(["9717137285"]);
-    const isTestPhone = TEST_PHONES.has(phone);
-    const otp = (isDev || isTestPhone) ? "123456" : String(Math.floor(100000 + Math.random() * 900000));
+    // Demo OTP backdoor removed for security
+    const isTestPhone = false;
+    const otp = isDev ? "123456" : String(crypto.randomInt(100000, 1000000));
 
     // Find or create user as DOCTOR
     let user = await db.user.findUnique({ where: { phone } });
@@ -38,7 +39,7 @@ export async function POST(req: Request) {
       },
     });
 
-    return NextResponse.json({ success: true, message: "OTP sent", devOtp: (isDev || isTestPhone) ? otp : undefined });
+    return NextResponse.json({ success: true, message: "OTP sent", devOtp: isDev ? otp : undefined });
   } catch (error) {
     console.error("Send OTP error:", error);
     return NextResponse.json({ error: "Failed to send OTP" }, { status: 500 });
