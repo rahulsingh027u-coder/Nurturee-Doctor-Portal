@@ -69,7 +69,14 @@ type CallPhase =
 // Constants
 // ---------------------------------------------------------------------------
 
-const ICE_SERVERS = [{ urls: "stun:stun.l.google.com:19302" }];
+const ICE_SERVERS = [
+  { urls: "stun:stun.l.google.com:19302" },
+  ...(process.env.NEXT_PUBLIC_TURN_SERVER ? [{
+    urls: process.env.NEXT_PUBLIC_TURN_SERVER,
+    username: process.env.NEXT_PUBLIC_TURN_USERNAME || "",
+    credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL || "",
+  }] : []),
+];
 
 const SIGNAL_URL = "/?XTransformPort=3003";
 
