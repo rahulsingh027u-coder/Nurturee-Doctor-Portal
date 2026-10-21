@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
+import { requireDoctorAuth } from '@/lib/require-doctor-auth';
 import { db } from "@/lib/db";
 
 // POST /api/clinics/doctors — add/remove/update doctors in a clinic
 // body: { clinicId, doctorIds, action: "add"|"remove" } | { membershipId, department, associationType, action: "update" }
 export async function POST(req: Request) {
   try {
+    const auth = await requireDoctorAuth();
+    if (!auth.ok) return auth.response;
     const body = await req.json();
     const { clinicId, doctorIds, action, membershipId, department, associationType } = body;
 

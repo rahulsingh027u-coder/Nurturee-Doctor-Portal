@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
+import { requireDoctorAuth, checkDoctorOwnership } from '@/lib/require-doctor-auth';
 import { db } from "@/lib/db";
 
 // GET /api/prescriptions?doctorId=xxx&patientId=xxx
 export async function GET(req: Request) {
   try {
+    const auth = await requireDoctorAuth();
+    if (!auth.ok) return auth.response;
     const { searchParams } = new URL(req.url);
     const doctorId = searchParams.get("doctorId");
     const patientId = searchParams.get("patientId");
@@ -11,6 +14,8 @@ export async function GET(req: Request) {
 
     const where: Record<string, unknown> = {};
     if (doctorId) {
+      const ownershipError = await checkDoctorOwnership(doctorId, auth);
+      if (ownershipError) return ownershipError;
       const profile = await db.doctorProfile.findUnique({ where: { userId: doctorId } });
       where.doctorId = profile ? profile.id : doctorId;
     }
@@ -33,7 +38,11 @@ export async function GET(req: Request) {
 // POST /api/prescriptions — create prescription with items
 export async function POST(req: Request) {
   try {
+    const auth = await requireDoctorAuth();
+    if (!auth.ok) return auth.response;
     const { doctorId, patientId, bookingId, patientName, patientAge, patientGender, diagnosis, notes, items, status } = await req.json();
+    const ownershipError = await checkDoctorOwnership(doctorId, auth);
+    if (ownershipError) return ownershipError;
     if (!doctorId || !patientName || !patientAge || !patientGender || !diagnosis || !bookingId) {
       return NextResponse.json({ error: "doctorId, patientName, patientAge, patientGender, diagnosis and bookingId are required" }, { status: 400 });
     }
@@ -94,6 +103,8 @@ export async function POST(req: Request) {
 // PATCH /api/prescriptions — update prescription
 export async function PATCH(req: Request) {
   try {
+    const auth = await requireDoctorAuth();
+    if (!auth.ok) return auth.response;
     const { id, status, diagnosis, notes, items } = await req.json();
     if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 

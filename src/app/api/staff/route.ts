@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
+import { requireDoctorAuth } from '@/lib/require-doctor-auth';
 import { db } from "@/lib/db";
 
 // GET /api/staff?doctorId=xxx | ?userId=xxx
 // userId path: staff login — if clinicId set, return ALL clinic doctors
 export async function GET(req: Request) {
   try {
+    const auth = await requireDoctorAuth();
+    if (!auth.ok) return auth.response;
     const { searchParams } = new URL(req.url);
     const doctorId = searchParams.get("doctorId");
     const userId = searchParams.get("userId");
@@ -66,6 +69,8 @@ export async function GET(req: Request) {
 // POST /api/staff — create a staff member (tied to a single doctor)
 export async function POST(req: Request) {
   try {
+    const auth = await requireDoctorAuth();
+    if (!auth.ok) return auth.response;
     const body = await req.json();
     const { doctorId, name, phone, role, permissions } = body;
 
@@ -100,6 +105,8 @@ export async function POST(req: Request) {
 // PUT /api/staff?id=xxx
 export async function PUT(req: Request) {
   try {
+    const auth = await requireDoctorAuth();
+    if (!auth.ok) return auth.response;
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
@@ -126,6 +133,8 @@ export async function PUT(req: Request) {
 // DELETE /api/staff?id=xxx
 export async function DELETE(req: Request) {
   try {
+    const auth = await requireDoctorAuth();
+    if (!auth.ok) return auth.response;
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });

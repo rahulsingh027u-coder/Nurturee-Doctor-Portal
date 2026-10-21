@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
+import { requireDoctorAuth } from '@/lib/require-doctor-auth';
 import { db } from "@/lib/db";
 
 // GET /api/clinics?doctorId=xxx — list all clinics a doctor belongs to (via ClinicDoctor join)
 export async function GET(req: Request) {
   try {
+    const auth = await requireDoctorAuth();
+    if (!auth.ok) return auth.response;
     const { searchParams } = new URL(req.url);
     const doctorId = searchParams.get("doctorId");
 
@@ -111,6 +114,8 @@ export async function GET(req: Request) {
 // POST /api/clinics — create a clinic + add creator as member
 export async function POST(req: Request) {
   try {
+    const auth = await requireDoctorAuth();
+    if (!auth.ok) return auth.response;
     const body = await req.json();
     const { name, address, city, phone, email, department, type, createdById } = body;
 
@@ -160,6 +165,8 @@ export async function POST(req: Request) {
 // PUT /api/clinics?id=xxx — update clinic details
 export async function PUT(req: Request) {
   try {
+    const auth = await requireDoctorAuth();
+    if (!auth.ok) return auth.response;
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
@@ -196,6 +203,8 @@ export async function PUT(req: Request) {
 // DELETE /api/clinics?id=xxx — delete clinic + cleanup
 export async function DELETE(req: Request) {
   try {
+    const auth = await requireDoctorAuth();
+    if (!auth.ok) return auth.response;
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
     if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireDoctorAuth, checkDoctorOwnership } from '@/lib/require-doctor-auth';
 import { db } from "@/lib/db";
 
 // GET /api/bookings?doctorId=xxx&date=xxx&status=xxx
@@ -7,6 +8,8 @@ import { db } from "@/lib/db";
 // doctor sees bookings from every source (portal POST + customer app).
 export async function GET(req: Request) {
   try {
+    const auth = await requireDoctorAuth();
+    if (!auth.ok) return auth.response;
     const { searchParams } = new URL(req.url);
     const doctorIdParam = searchParams.get("doctorId");
     const date = searchParams.get("date");
@@ -17,6 +20,8 @@ export async function GET(req: Request) {
     const where: Record<string, unknown> = {};
 
     if (doctorIdParam) {
+      const ownershipError = await checkDoctorOwnership(doctorIdParam, auth);
+      if (ownershipError) return ownershipError;
       const possibleIds = new Set<string>([doctorIdParam]);
 
       // Find DoctorProfile by userId
@@ -68,6 +73,8 @@ export async function GET(req: Request) {
 // POST /api/bookings — create a new booking (doctor consultation from customer)
 export async function POST(req: Request) {
   try {
+    const auth = await requireDoctorAuth();
+    if (!auth.ok) return auth.response;
     const body = await req.json();
     const {
       doctorId, patientName, patientPhone, patientGender, mode,
@@ -116,6 +123,8 @@ export async function POST(req: Request) {
 // PATCH /api/bookings — update booking status
 export async function PATCH(req: Request) {
   try {
+    const auth = await requireDoctorAuth();
+    if (!auth.ok) return auth.response;
     const { id, status, callDuration, cancelReason } = await req.json();
     if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 

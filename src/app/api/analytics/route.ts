@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
+import { requireDoctorAuth } from '@/lib/require-doctor-auth';
 import { db } from "@/lib/db";
 
 // GET /api/analytics?doctorId=xxx
 export async function GET(req: Request) {
   try {
+    const auth = await requireDoctorAuth();
+    if (!auth.ok) return auth.response;
     const { searchParams } = new URL(req.url);
     let doctorId = searchParams.get("doctorId");
     if (!doctorId) return NextResponse.json({ error: "doctorId required" }, { status: 400 });

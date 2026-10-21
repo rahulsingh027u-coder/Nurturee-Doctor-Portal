@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
+import { requireDoctorAuth } from '@/lib/require-doctor-auth';
 import { db } from "@/lib/db";
 
 // GET /api/patients?doctorId=xxx&search=xxx
 export async function GET(req: Request) {
   try {
+    const auth = await requireDoctorAuth();
+    if (!auth.ok) return auth.response;
     const { searchParams } = new URL(req.url);
     const doctorId = searchParams.get("doctorId");
     const search = searchParams.get("search") || "";
@@ -42,6 +45,8 @@ export async function GET(req: Request) {
 // PATCH /api/patients — update patient (e.g. medicalHistory)
 export async function PATCH(req: Request) {
   try {
+    const auth = await requireDoctorAuth();
+    if (!auth.ok) return auth.response;
     const { id, medicalHistory } = await req.json();
     if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
