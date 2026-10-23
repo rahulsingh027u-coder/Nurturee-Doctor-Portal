@@ -184,7 +184,13 @@ model Booking {
   payments      Payment[]
   prescriptions  Prescription[]
   notifications  Notification[]
-}
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([caregiverId])
+  @@index([serviceId])
+  @@index([status])
+  @@index([date])}
 
 // ─── Time Slots (Doctor availability) ────────────────────────────────
 model TimeSlot {
@@ -261,7 +267,8 @@ model Notification {
   type      String   @default("info") // info, booking, payment, prescription, reminder
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
-}
+
+  @@index([userId, userType])}
 
 // ─── Linked Doctors (doctors added by a primary doctor) ──────────────
 model LinkedDoctor {
@@ -383,7 +390,7 @@ model Doctor {
 model Caregiver {
   id                  String    @id @default(cuid())
   caregiverId         String    @unique
-  phone               String
+  phone               String @unique
   name                String?
   email               String?
   specialty           String?
@@ -442,9 +449,9 @@ model Commission {
   bookingId        String    @unique
   doctorId         String
   totalAmount      Float
-  commissionRate   Float
-  commissionAmount Float
-  doctorEarnings   Float
+  commissionRate  Decimal @db.Decimal(10,2)
+  commissionAmount  Decimal @db.Decimal(10,2)
+  doctorEarnings  Decimal @db.Decimal(10,2)
   paymentStatus    String    @default("pending")
   paidAt           DateTime?
   createdAt        DateTime  @default(now())
