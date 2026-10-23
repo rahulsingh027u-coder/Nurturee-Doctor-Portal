@@ -43,7 +43,9 @@ export async function POST(req: Request) {
     const { doctorId, patientId, bookingId, patientName, patientAge, patientGender, diagnosis, notes, items, status } = await req.json();
     const ownershipError = await checkDoctorOwnership(doctorId, auth);
     if (ownershipError) return ownershipError;
-    if (!doctorId || !patientName || !patientAge || !patientGender || !diagnosis || !bookingId) {
+    if (!doctorId || !patientName || patientAge === undefined || !patientGender || !diagnosis || !bookingId) {
+    if (patientName.length > 200) return NextResponse.json({ error: 'Patient name too long' }, { status: 400 });
+    if (diagnosis.length > 2000) return NextResponse.json({ error: 'Diagnosis too long' }, { status: 400 });
       return NextResponse.json({ error: "doctorId, patientName, patientAge, patientGender, diagnosis and bookingId are required" }, { status: 400 });
     }
 
